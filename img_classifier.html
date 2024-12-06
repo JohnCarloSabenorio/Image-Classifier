@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="images/tab_icon.png" type="image/x-icon">
+    <title>Classifier</title>
+</head>
+
+<body>
+
+    <center>
+
+        <div id="start-container">
+            <h1 id="header">Image Classifier</h1>
+            <button id="start-btn" type="button" onclick="init()">
+                <p id="btn-lbl">Start</p>
+            </button>
+        </div>
+
+
+        <div id="card-container">
+            <div class="wrapper">
+                <div id="webcam-container"></div>
+                <div id="label-container"></div>
+            </div>
+            <div class="button-wrapper">
+                <button id="stop-btn" type="button" onclick="">
+                    <p id="btn-lbl">Stop</p>
+                </button>
+            </div>
+        </div>
+        </div>
+
+
+
+    </center>
+
+
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        // More API functions here:
+        // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+
+        // the link to your model provided by Teachable Machine export panel
+        const URL = "https://teachablemachine.withgoogle.com/models/Msqm048TQ/";
+
+
+        let model, webcam, webcamContainer, labelContainer, maxPredictions;
+
+        const header = document.getElementById('header');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const cardContainer = document.getElementById('card-container');
+        const startContainer = document.getElementById('start-container');
+        // Load the image model and setup the webcam    
+        async function init() {
+            startBtn.style.visibility = "hidden";
+            webcamContainter = document.getElementById("webcam-container");
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            // load the model and metadata
+            // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
+            // or files from your local hard drive
+            // Note: the pose library adds "tmImage" object to your window (window.tmImage)
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            // Convenience function to setup a webcam
+            const flip = true; // whether to flip the webcam
+            webcam = new tmImage.Webcam(500, 500, flip); // width, height, flip
+
+
+            try {
+                await webcam.setup(); // request access to the webcam
+                await webcam.play();
+                window.requestAnimationFrame(loop);
+
+                cardContainer.style.display = "inline";
+                startContainer.style.display = "none";
+
+                document.getElementById('webcam-container').style.visibility = 'visible';
+                document.getElementById('label-container').style.visibility = 'visible';
+                // append elements to the DOM
+                webcamContainter.appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                for (let i = 0; i < maxPredictions; i++) {
+                    const containerDiv = document.createElement("div");
+                    containerDiv.style.padding = 0;
+                    const classNameElement = document.createElement("p");
+                    classNameElement.style.padding = 0;
+                    classNameElement.style.margin = 0;
+                    const probabilityElement = document.createElement("p");
+                    probabilityElement.style.padding = 0;
+                    probabilityElement.style.margin = 0;
+
+                    // Add classNameElement and probabilityElement to containerDiv
+                    containerDiv.appendChild(classNameElement);
+                    containerDiv.appendChild(probabilityElement);
+
+                    // Add containerDiv to labelContainer
+                    labelContainer.appendChild(containerDiv);
+                }
+            }
+            catch (error) {
+                startBtn.style.visibility = 'visible';
+            }
+
+
+        }
+
+        async function loop() {
+            webcam.update(); // update the webcam frame
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        // run the webcam image through the image model
+        // async function predict() {
+        //     // predict can take in an image, video or canvas html element
+        //     const prediction = await model.predict(webcam.canvas);
+        //     for (let i = 0; i < maxPredictions; i++) {
+        //         const classPrediction =
+        //             prediction[i].className + ": " +  Math.round(prediction[i].probability * 100) + "%";
+        //         labelContainer.childNodes[i].innerHTML = classPrediction;
+        //     }
+        // }
+
+        async function predict() {
+            // predict can take in an image, video or canvas html element
+
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const className = prediction[i].className;
+                const probability = Math.round(prediction[i].probability * 100) + "%";
+
+                const containerDiv = labelContainer.childNodes[i];
+                const classNameElement = containerDiv.querySelectorAll('p')[0];
+                const probabilityElement = containerDiv.querySelectorAll('p')[1];
+
+                classNameElement.textContent = className;
+                probabilityElement.textContent = probability;
+            }
+        }
+
+        function stop() {
+            // Stop the webcam and animation
+            webcam.stop();
+            window.cancelAnimationFrame(loop);
+            webcamContainter.removeChild(webcam.canvas);
+
+            // Hide or remove the containers
+            startBtn.style.visibility = 'visible';
+            cardContainer.style.display = "none";
+            startContainer.style.display = "inline";
+            document.getElementById('webcam-container').style.visibility = 'hidden';
+            document.getElementById('label-container').style.visibility = 'hidden';
+
+            // Clear the contents of the labelContainer
+            const labelContainer = document.getElementById('label-container');
+            while (labelContainer.firstChild) {
+                labelContainer.removeChild(labelContainer.firstChild);
+            }
+        }
+
+        stopBtn.addEventListener('click', stop);
+
+    </script>
+
+</body>
+
+</html>
